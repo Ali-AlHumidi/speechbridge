@@ -2,7 +2,7 @@ import os
 from google.cloud import speech
 
 # Set up Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/alialhumidi/Documents/real-time-translation-app/credentials.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_CREDENTIALS_PATH")
 
 # Speech-to-Text
 def transcribe_audio(file_path):

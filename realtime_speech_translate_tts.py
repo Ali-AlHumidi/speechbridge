@@ -7,7 +7,7 @@ import tempfile
 import simpleaudio as sa  # For playing audio
 
 # Set up Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/alialhumidi/Documents/real-time-translation-app/credentials.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_CREDENTIALS_PATH")
 
 # Audio recording parameters
 CHUNK = 1024  # Size of each audio chunk

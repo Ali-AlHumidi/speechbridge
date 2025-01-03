@@ -6,7 +6,7 @@ import pyaudio
 import wave
 
 # Set up Google Cloud credentials
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/alialhumidi/Documents/real-time-translation-app/credentials.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_CREDENTIALS_PATH")
 
 # 1. Record Audio
 def record_audio(output_filename):
