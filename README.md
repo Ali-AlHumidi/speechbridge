@@ -1,1 +1,3 @@
 # speechbridge
+
+The Real-Time Language Translation App is a Python-based program that processes spoken language in real time to provide smooth multilingual communication. The application converts live audio into text, translates it into a target language, then outputs the translation as synthetic voice using Google Cloud voice-to-Text, Translation, and Text-to-Speech APIs. It incorporates these APIs into a streamlined workflow, enabling real-time speech-to-speech translation, and was designed with performance and low latency in mind. The application exhibits sophisticated cloud technology integration with effective audio processing, and it supports a number of languages.
