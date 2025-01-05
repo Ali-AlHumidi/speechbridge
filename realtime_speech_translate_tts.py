@@ -1,32 +1,44 @@
 import os
-from google.cloud import speech
-from google.cloud import translate_v2 as translate
-from google.cloud import texttospeech
 import pyaudio
+import wave
+import sounddevice as sd
+import numpy as np
+from google.cloud import speech
+from google.cloud import texttospeech
+from google.cloud import translate_v2 as translate
 import tempfile
-import simpleaudio as sa  # For playing audio
 
-# Set up Google Cloud credentials
+# Ensure the Google credentials are set
+if not os.getenv("GOOGLE_CREDENTIALS_PATH"):
+    raise EnvironmentError("GOOGLE_CREDENTIALS_PATH environment variable is not set.")
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_CREDENTIALS_PATH")
 
-# Audio recording parameters
-CHUNK = 1024  # Size of each audio chunk
-FORMAT = pyaudio.paInt16  # Format of audio
-CHANNELS = 1  # Mono audio
-RATE = 16000  # 16kHz sample rate
+# Audio recording settings
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
 
+def play_audio_to_virtual_mic(audio_file):
+    """
+    Play synthesized audio through the virtual microphone (BlackHole).
+    """
+    with wave.open(audio_file, 'rb') as wf:
+        data = wf.readframes(wf.getnframes())
+        audio_data = np.frombuffer(data, dtype=np.int16)
+        sd.play(audio_data, samplerate=wf.getframerate(), blocking=True)
 
 def stream_audio_to_text_translate_tts(target_language):
     """
-    Streams microphone audio to Google Cloud Speech-to-Text API for real-time transcription,
-    translates the transcription, and converts it to speech in the target language.
+    Streams microphone audio to Google Cloud APIs for transcription, translation, and text-to-speech.
     """
-    # Initialize clients
+    # Initialize Google Cloud clients
     speech_client = speech.SpeechClient()
     translate_client = translate.Client()
     tts_client = texttospeech.TextToSpeechClient()
 
-    # Configure microphone stream
+    # Set up microphone input
     audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT,
                         channels=CHANNELS,
@@ -34,7 +46,7 @@ def stream_audio_to_text_translate_tts(target_language):
                         input=True,
                         frames_per_buffer=CHUNK)
 
-    # Google API Streaming configuration
+    # Configure Google Speech-to-Text streaming
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=RATE,
@@ -44,64 +56,55 @@ def stream_audio_to_text_translate_tts(target_language):
 
     print("Listening, translating, and synthesizing speech (press Ctrl+C to stop)...")
 
-    # Generator function to yield audio chunks
     def generate_audio():
         while True:
             data = stream.read(CHUNK, exception_on_overflow=False)
             yield speech.StreamingRecognizeRequest(audio_content=data)
 
-    # Use Google's streaming API for real-time transcription
     try:
         responses = speech_client.streaming_recognize(config=streaming_config, requests=generate_audio())
 
         for response in responses:
             for result in response.results:
                 if result.is_final:
-                    # Step 1: Get the final transcription
+                    # Transcription
                     transcript = result.alternatives[0].transcript
                     print(f"Transcript: {transcript}")
 
-                    # Step 2: Translate the transcription
+                    # Translation
                     translation = translate_client.translate(transcript, target_language=target_language)
                     translated_text = translation['translatedText']
                     print(f"Translated Text ({target_language}): {translated_text}")
 
-                    # Step 3: Convert the translated text to speech
+                    # Text-to-Speech
                     synthesis_input = texttospeech.SynthesisInput(text=translated_text)
-
-                    # Configure the voice settings
                     voice = texttospeech.VoiceSelectionParams(
                         language_code=target_language,
                         ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
                     )
                     audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.LINEAR16)
 
-                    # Generate speech audio
                     response = tts_client.synthesize_speech(
                         input=synthesis_input, voice=voice, audio_config=audio_config
                     )
 
-                    # Save the audio to a temporary file
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+                    # Save synthesized audio to a temporary file
+                    with tempfile.NamedTemporaryFile(delete=True, suffix=".wav") as temp_audio:
                         temp_audio.write(response.audio_content)
                         temp_audio.flush()
 
-                        # Play the audio
-                        wave_obj = sa.WaveObject.from_wave_file(temp_audio.name)
-                        play_obj = wave_obj.play()
-                        play_obj.wait_done()  # Wait for playback to finish
+                        # Play the audio through BlackHole
+                        play_audio_to_virtual_mic(temp_audio.name)
 
     except KeyboardInterrupt:
         print("Stopped listening.")
 
     finally:
-        # Clean up
         stream.stop_stream()
         stream.close()
         audio.terminate()
 
-
 if __name__ == "__main__":
-    # Set target language for translation (e.g., "es" for Spanish, "fr" for French)
-    target_language_code = "es"  # Change this to the desired target language code
+    # Set your target language code (e.g., "es" for Spanish, "fr" for French)
+    target_language_code = "es"
     stream_audio_to_text_translate_tts(target_language_code)
