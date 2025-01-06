@@ -1,0 +1,7 @@
+google-cloud-speech
+google-cloud-translate
+google-cloud-texttospeech
+pyaudio
+sounddevice
+numpy
+    
